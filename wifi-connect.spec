@@ -18,6 +18,7 @@ WiFi Connect is a utility for dynamically setting the WiFi configuration on a
 Linux device via a captive portal. WiFi credentials are specified by connecting
 with a mobile phone or laptop to the access point that WiFi Connect creates.
 
+%global debug_package %{nil}
 %prep
 %setup -q
 
