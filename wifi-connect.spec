@@ -24,6 +24,7 @@ with a mobile phone or laptop to the access point that WiFi Connect creates.
 
 %build
 cargo build --release
+strip target/release/%{name}
 
 %install
 rm -rf $RPM_BUILD_ROOT
