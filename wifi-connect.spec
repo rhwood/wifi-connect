@@ -1,5 +1,5 @@
 Name:           wifi-connect
-Version:        4.2.6
+Version:        4.2.9
 Release:        1%{?dist}
 Summary:        Easy WiFi setup for Linux devices from your mobile phone or laptop
 
