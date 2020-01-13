@@ -1,4 +1,58 @@
 - commits:
+    - subject: 'readme: Add balenaOS multicontainer app example.'
+      hash: 02f4f8f6817ad659036efeaade87e354efa33fb2
+      body: ''
+      footer:
+        Connects-to: '#239'
+        connects-to: '#239'
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Tomás Migone <tomas@balena.io>
+        signed-off-by: Tomás Migone <tomas@balena.io>
+      author: Tomás Migone
+  version: 4.2.13
+  date: 2019-12-27T20:20:13.865Z
+- commits:
+    - subject: Ignore unmanaged devices
+      hash: 131c3a6ed24b5589e916d8b10cf72bb7a8514600
+      body: >
+        Unmanaged device could be wrongly picked when enumerating WiFi
+        interfaces. Those are now ignored.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+  version: 4.2.12
+  date: 2019-10-31T12:06:33.399Z
+- commits:
+    - subject: Support Buster and future Raspbian versions in the installer
+      hash: 285c339dc986f6f2aa029160d7cdfa165bfe8846
+      body: >
+        Reverse installer logic to exclude Jessie only from allowing
+        installation.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+  version: 4.2.11
+  date: 2019-10-23T19:45:39.458Z
+- commits:
+    - subject: Delete only the right AP profile on start
+      hash: 38770406eee93f5031c6de5b0413fce9279719da
+      body: ''
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Zahari Petkov <zahari@balena.io>
+        signed-off-by: Zahari Petkov <zahari@balena.io>
+      author: Zahari Petkov
+  version: 4.2.10
+  date: 2019-09-19T10:10:42.210Z
+- commits:
     - subject: Add link to supported boards/dongles
       hash: 28f1e9ffa1cdf5df76eb5d81e61a5fc7bea28d9c
       body: ''

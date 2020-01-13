@@ -6,7 +6,8 @@ use std::error::Error;
 use std::net::Ipv4Addr;
 
 use network_manager::{AccessPoint, AccessPointCredentials, Connection, ConnectionState,
-                      Connectivity, Device, DeviceType, NetworkManager, Security, ServiceState};
+                      Connectivity, Device, DeviceState, DeviceType, NetworkManager, Security,
+                      ServiceState};
 
 use errors::*;
 use exit::{exit, trap_exit_signals, ExitResult};
@@ -211,7 +212,7 @@ impl NetworkCommandHandler {
     }
 
     fn connect(&mut self, ssid: &str, identity: &str, passphrase: &str) -> Result<bool> {
-        delete_connection_if_exists(&self.manager, ssid);
+        delete_existing_connections_to_same_network(&self.manager, ssid);
 
         if let Some(ref connection) = self.portal_connection {
             stop_portal(connection, &self.config)?;
@@ -305,10 +306,10 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
     command_handler.run(exit_tx);
 }
 
-pub fn init_networking() -> Result<()> {
+pub fn init_networking(config: &Config) -> Result<()> {
     start_network_manager_service()?;
 
-    delete_access_point_profiles().chain_err(|| ErrorKind::DeleteAccessPoint)
+    delete_exising_wifi_connect_ap_profile(&config.ssid).chain_err(|| ErrorKind::DeleteAccessPoint)
 }
 
 pub fn find_device(manager: &NetworkManager, interface: &Option<String>) -> Result<Device> {
@@ -317,26 +318,39 @@ pub fn find_device(manager: &NetworkManager, interface: &Option<String>) -> Resu
             .get_device_by_interface(interface)
             .chain_err(|| ErrorKind::DeviceByInterface(interface.clone()))?;
 
-        if *device.device_type() == DeviceType::WiFi {
-            info!("Targeted WiFi device: {}", interface);
-            Ok(device)
-        } else {
+        info!("Targeted WiFi device: {}", interface);
+
+        if *device.device_type() != DeviceType::WiFi {
             bail!(ErrorKind::NotAWiFiDevice(interface.clone()))
         }
+
+        if device.get_state()? == DeviceState::Unmanaged {
+            bail!(ErrorKind::UnmanagedDevice(interface.clone()))
+        }
+
+        Ok(device)
     } else {
         let devices = manager.get_devices()?;
 
-        let index = devices
-            .iter()
-            .position(|d| *d.device_type() == DeviceType::WiFi);
-
-        if let Some(index) = index {
-            info!("WiFi device: {}", devices[index].interface());
-            Ok(devices[index].clone())
+        if let Some(device) = find_wifi_managed_device(devices)? {
+            info!("WiFi device: {}", device.interface());
+            Ok(device)
         } else {
             bail!(ErrorKind::NoWiFiDevice)
         }
     }
+}
+
+fn find_wifi_managed_device(devices: Vec<Device>) -> Result<Option<Device>> {
+    for device in devices {
+        if *device.device_type() == DeviceType::WiFi
+            && device.get_state()? != DeviceState::Unmanaged
+        {
+            return Ok(Some(device));
+        }
+    }
+
+    Ok(None)
 }
 
 fn get_access_points(device: &Device) -> Result<Vec<AccessPoint>> {
@@ -508,15 +522,13 @@ pub fn start_network_manager_service() -> Result<()> {
     Ok(())
 }
 
-fn delete_access_point_profiles() -> Result<()> {
+fn delete_exising_wifi_connect_ap_profile(ssid: &str) -> Result<()> {
     let manager = NetworkManager::new();
 
-    let connections = manager.get_connections()?;
-
-    for connection in connections {
-        if &connection.settings().kind == "802-11-wireless" && &connection.settings().mode == "ap" {
-            debug!(
-                "Deleting access point connection profile: {:?}",
+    for connection in &manager.get_connections()? {
+        if is_access_point_connection(connection) && is_same_ssid(connection, ssid) {
+            info!(
+                "Deleting already created by WiFi Connect access point connection profile: {:?}",
                 connection.settings().ssid,
             );
             connection.delete()?;
@@ -526,7 +538,7 @@ fn delete_access_point_profiles() -> Result<()> {
     Ok(())
 }
 
-fn delete_connection_if_exists(manager: &NetworkManager, ssid: &str) {
+fn delete_existing_connections_to_same_network(manager: &NetworkManager, ssid: &str) {
     let connections = match manager.get_connections() {
         Ok(connections) => connections,
         Err(e) => {
@@ -535,18 +547,33 @@ fn delete_connection_if_exists(manager: &NetworkManager, ssid: &str) {
         },
     };
 
-    for connection in connections {
-        if let Ok(connection_ssid) = connection.settings().ssid.as_str() {
-            if &connection.settings().kind == "802-11-wireless" && connection_ssid == ssid {
-                info!(
-                    "Deleting existing WiFi connection: {:?}",
-                    connection.settings().ssid,
-                );
+    for connection in &connections {
+        if is_wifi_connection(connection) && is_same_ssid(connection, ssid) {
+            info!(
+                "Deleting existing WiFi connection to the same network: {:?}",
+                connection.settings().ssid,
+            );
 
-                if let Err(e) = connection.delete() {
-                    error!("Deleting existing WiFi connection failed: {}", e);
-                }
+            if let Err(e) = connection.delete() {
+                error!("Deleting existing WiFi connection failed: {}", e);
             }
         }
     }
+}
+
+fn is_same_ssid(connection: &Connection, ssid: &str) -> bool {
+    connection_ssid_as_str(connection) == Some(ssid)
+}
+
+fn connection_ssid_as_str(connection: &Connection) -> Option<&str> {
+    // An access point SSID could be random bytes and not a UTF-8 encoded string
+    connection.settings().ssid.as_str().ok()
+}
+
+fn is_access_point_connection(connection: &Connection) -> bool {
+    is_wifi_connection(connection) && connection.settings().mode == "ap"
+}
+
+fn is_wifi_connection(connection: &Connection) -> bool {
+    connection.settings().kind == "802-11-wireless"
 }
